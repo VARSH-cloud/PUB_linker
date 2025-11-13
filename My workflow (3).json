@@ -1,0 +1,316 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        1296,
+        384
+      ],
+      "id": "b58dbae0-501f-4aca-9aa0-35d8b47e878e",
+      "name": "Start Workflow (Hyaluronic hydrogel)"
+    },
+    {
+      "parameters": {
+        "url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "db",
+              "value": "pubmed"
+            },
+            {
+              "name": "term",
+              "value": "={{ $json.search_query }}"
+            },
+            {
+              "name": "retmode",
+              "value": "json"
+            },
+            {
+              "name": "retmax",
+              "value": "10"
+            },
+            {
+              "name": "tool",
+              "value": "pub_linker"
+            },
+            {
+              "name": "email",
+              "value": "varshini7013m@gmail.com "
+            },
+            {
+              "name": "usehistory",
+              "value": "y"
+            },
+            {
+              "name": "mindate",
+              "value": "2020"
+            },
+            {
+              "name": "maxdate",
+              "value": "2025"
+            },
+            {
+              "name": "datetype",
+              "value": "pdat"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1968,
+        384
+      ],
+      "id": "4607b5b5-a86c-489f-97b6-3ebf63103d48",
+      "name": "PubMed ESearch"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "58f0b228-5d40-4da6-902f-1d88527da0b7",
+              "name": "search_query",
+              "value": "Hyaluronic acid hydrogel",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1520,
+        384
+      ],
+      "id": "5b9d1b9f-949f-45bb-94fe-809d2fb15dbb",
+      "name": "Set Topic Variable"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "861d669f-df33-4640-a118-d5011457fc99",
+              "name": "search_query",
+              "value": "={{ $json.search_query }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1744,
+        384
+      ],
+      "id": "88f46f63-0c50-4e91-947b-7e2015136fa4",
+      "name": "Pass Topic to Next Node"
+    },
+    {
+      "parameters": {
+        "jsCode": "const responseData = $input.item.json;\nconst results = []; \n\n// Safely access the array of IDs from the ESearch output\nconst idList = responseData.esearchresult.idlist;\n\nif (idList && idList.length > 0) {\n    // Ensure idList is treated as an array for the loop\n    const paperArticles = Array.isArray(idList) ? idList : [idList];\n    \n    for (const pmid of paperArticles) {\n        // Manually construct the reliable PubMed link\n        const link = `https://pubmed.ncbi.nlm.nih.gov/${pmid}`;\n        \n        results.push({\n            // Since EFetch failed, we use the ID for the title\n            title: `PubMed Paper ID: ${pmid}`,\n            link: link\n        });\n    }\n} else {\n    // Handle zero results\n    return [{ json: { papers: [] } }];\n}\n\nreturn [{ json: { papers: results } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2192,
+        384
+      ],
+      "id": "e4da20ad-d359-4783-96b8-c2abd377d2fd",
+      "name": "Final Link Generation"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "papers",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2416,
+        384
+      ],
+      "id": "63ccc018-e850-4798-b82a-11eeb6e85752",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7de29506-b3fa-45d6-9ee1-7f2f52bc934b",
+              "name": "Title",
+              "value": "={{ $json.title }}",
+              "type": "string"
+            },
+            {
+              "id": "b892b5c7-ac4c-4370-97ec-9374856dcca8",
+              "name": "Link",
+              "value": "={{ $json.link }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2640,
+        384
+      ],
+      "id": "e943325d-b0b7-4e1e-9320-c3aba1a1767e",
+      "name": "Final Paper List"
+    },
+    {
+      "parameters": {
+        "jsCode": "let htmlBody = '<h1>PubMed Research Papers Found</h1><ul>';\n\n// Loop through all the clean items from the Final Paper List node\nfor (const item of $input.all()) {\n    const title = item.json.Title;\n    const link = item.json.Link;\n\n    // Create an HTML list item for each paper\n    htmlBody += `<li><a href=\"${link}\">${title}</a></li>`;\n}\n\nhtmlBody += '</ul>';\n\n// Output the final body and subject for the next node\nreturn [{\n    json: {\n        subject: `New Research Papers for Hyaluronic Hydrogel`,\n        body: htmlBody\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2864,
+        384
+      ],
+      "id": "c7d684c8-7b33-421f-abef-5328f23064fa",
+      "name": "Format Email Body",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "sendTo": "varshini7013m@gmail.com",
+        "subject": "={{ $('Format Email Body').first().json.subject }}",
+        "message": "={{ $('Format Email Body').first().json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3088,
+        384
+      ],
+      "id": "c71366c0-cf1d-40d2-90c1-12d9a64dc7d0",
+      "name": "Send a message",
+      "webhookId": "90fd7a95-2a31-4cb4-a52b-94c65feb5d35",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "zagHWdoQbm6fOCey",
+          "name": "Gmail account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start Workflow (Hyaluronic hydrogel)": {
+      "main": [
+        [
+          {
+            "node": "Set Topic Variable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Topic Variable": {
+      "main": [
+        [
+          {
+            "node": "Pass Topic to Next Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pass Topic to Next Node": {
+      "main": [
+        [
+          {
+            "node": "PubMed ESearch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PubMed ESearch": {
+      "main": [
+        [
+          {
+            "node": "Final Link Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Link Generation": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Final Paper List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Paper List": {
+      "main": [
+        [
+          {
+            "node": "Format Email Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Email Body": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "6e0720ac-7295-4a9c-b216-9498443e11d5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8e614236313f870004aef72a87c80b47bffc599e2983b204e366f8b03085943b"
+  },
+  "id": "4AyceokpZeEJUZ33",
+  "tags": []
+}
